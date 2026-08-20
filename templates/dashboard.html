@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold"><i class="fas fa-tachometer-alt text-primary"></i> ProcureAI Dashboard</h2>
+        <p class="text-muted">Executive summary of procurement operations and intelligence.</p>
+    </div>
+</div>
+
+<!-- Key Metrics Row 1 -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card shadow h-100 border-0 bg-primary text-white" style="background: linear-gradient(45deg, #0d6efd, #0dcaf0);">
+            <div class="card-body">
+                <h6 class="text-uppercase mb-1 fw-bold opacity-75" style="font-size: 0.8rem; letter-spacing: 1px;">Total Requests</h6>
+                <h2 class="display-5 fw-bold mb-0">{{ stats.total_prs }}</h2>
+                <i class="fas fa-folder-open position-absolute opacity-25" style="right: 15px; bottom: 15px; font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card shadow h-100 border-0 text-white" style="background: linear-gradient(45deg, #fd7e14, #ffc107);">
+            <div class="card-body">
+                <h6 class="text-uppercase mb-1 fw-bold opacity-75" style="font-size: 0.8rem; letter-spacing: 1px;">Pending Approvals</h6>
+                <h2 class="display-5 fw-bold mb-0">{{ stats.pending_approvals }}</h2>
+                <i class="fas fa-clock position-absolute opacity-25" style="right: 15px; bottom: 15px; font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card shadow h-100 border-0 bg-success text-white" style="background: linear-gradient(45deg, #198754, #20c997);">
+            <div class="card-body">
+                <h6 class="text-uppercase mb-1 fw-bold opacity-75" style="font-size: 0.8rem; letter-spacing: 1px;">Purchase Orders</h6>
+                <h2 class="display-5 fw-bold mb-0">{{ stats.po_created_prs }}</h2>
+                <i class="fas fa-file-invoice position-absolute opacity-25" style="right: 15px; bottom: 15px; font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card shadow h-100 border-0 bg-dark text-white" style="background: linear-gradient(45deg, #212529, #495057);">
+            <div class="card-body">
+                <h6 class="text-uppercase mb-1 fw-bold opacity-75" style="font-size: 0.8rem; letter-spacing: 1px;">Total Spend</h6>
+                <h2 class="display-6 fw-bold mb-0" style="font-size: 1.8rem; margin-top: 5px;">{{ stats.total_spend }}</h2>
+                <i class="fas fa-rupee-sign position-absolute opacity-25" style="right: 15px; bottom: 15px; font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics Row 2 -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm h-100 border-0 border-start border-success border-4">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted text-uppercase mb-1 fw-bold" style="font-size: 0.75rem;">Approved Requests</h6>
+                    <h3 class="mb-0 text-success fw-bold">{{ stats.approved_prs }}</h3>
+                </div>
+                <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                    <i class="fas fa-thumbs-up fa-lg text-success"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm h-100 border-0 border-start border-primary border-4">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted text-uppercase mb-1 fw-bold" style="font-size: 0.75rem;">Avg Vendor Score</h6>
+                    <h3 class="mb-0 text-primary fw-bold">{{ stats.avg_vendor_score }}/100</h3>
+                </div>
+                <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                    <i class="fas fa-star fa-lg text-primary"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm h-100 border-0 border-start border-danger border-4">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-danger text-uppercase fw-bold mb-1" style="font-size: 0.75rem;">Risk Alerts</h6>
+                    <h3 class="mb-0 text-danger fw-bold">{{ stats.risk_alert_count }}</h3>
+                </div>
+                <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
+                    <i class="fas fa-exclamation-triangle fa-lg text-danger"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Row -->
+<div class="row">
+    <!-- Left Column -->
+    <div class="col-md-8">
+        
+        <!-- Recent Requests -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom-0">
+                <h6 class="m-0 fw-bold"><i class="fas fa-list text-primary"></i> Recent Purchase Requests</h6>
+                <a href="/purchase-requests" class="btn btn-sm btn-outline-primary rounded-pill px-3">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Product</th>
+                                <th>Budget</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in recent_requests %}
+                            <tr>
+                                <td class="ps-4"><a href="/purchase-requests/{{ req.id }}" class="text-decoration-none"><strong>{{ req.id }}</strong></a></td>
+                                <td>{{ req.product }} <small class="text-muted">(Qty: {{ req.quantity }})</small></td>
+                                <td>₹{{ "{:,.0f}".format(req.budget) }}</td>
+                                <td>
+                                    <span class="badge rounded-pill
+                                        {% if req.status == 'APPROVED' %}bg-success
+                                        {% elif req.status == 'REJECTED' %}bg-danger
+                                        {% elif req.status == 'PO_CREATED' %}bg-primary
+                                        {% else %}bg-warning text-dark{% endif %}">
+                                        {{ req.status.replace('_', ' ') }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center py-4 text-muted">No recent requests</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent POs -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-white py-3 border-bottom-0">
+                <h6 class="m-0 fw-bold"><i class="fas fa-file-invoice text-success"></i> Recent Purchase Orders</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">PO Number</th>
+                                <th>Vendor</th>
+                                <th>Total Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for po in recent_pos %}
+                            <tr>
+                                <td class="ps-4"><strong class="text-primary">{{ po.name }}</strong></td>
+                                <td>{{ po.partner_id[1] if po.partner_id else 'Unknown' }}</td>
+                                <td><strong>₹{{ "{:,.0f}".format(po.amount_total) }}</strong></td>
+                                <td><span class="badge bg-secondary rounded-pill">{{ po.state|upper }}</span></td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center py-4 text-muted">No recent purchase orders</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-md-4">
+        
+        <!-- Top Vendors -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom-0">
+                <h6 class="m-0 fw-bold"><i class="fas fa-trophy text-warning"></i> Top Vendors</h6>
+                <a href="/vendor-performance" class="btn btn-sm btn-outline-primary rounded-pill px-3">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for v in top_vendors %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center p-3 border-0 border-bottom">
+                        <div>
+                            <h6 class="mb-0 fw-bold">{{ v.name }}</h6>
+                            <small class="text-muted"><i class="fas fa-tag"></i> {{ v.category }}</small>
+                        </div>
+                        <span class="badge bg-success rounded-pill p-2" style="font-size: 0.9rem;">{{ v.overall_score|round(0) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Status Chart -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-white py-3 border-bottom-0">
+                <h6 class="m-0 fw-bold"><i class="fas fa-chart-pie text-info"></i> Request Pipeline</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" height="220"></canvas>
+            </div>
+        </div>
+
+        <!-- Risk Alerts -->
+        <div class="card shadow-sm border-0 border-top border-danger border-4 bg-danger bg-opacity-10">
+            <div class="card-header bg-transparent py-3 border-bottom-0">
+                <h6 class="m-0 fw-bold text-danger"><i class="fas fa-exclamation-triangle"></i> Action Required: Risk Alerts</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush bg-transparent">
+                    {% for v in risk_alerts %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center p-3 bg-transparent border-0 border-bottom border-danger border-opacity-25">
+                        <div>
+                            <h6 class="mb-0 fw-bold text-dark">{{ v.name }}</h6>
+                            <small class="text-danger fw-bold"><i class="fas fa-arrow-down"></i> Underperforming (Score: {{ v.overall_score|round(0) }})</small>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-center text-muted p-4 bg-transparent border-0">No active risk alerts! <i class="fas fa-check-circle text-success ms-1"></i></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const statusData = {{ status_data|tojson }};
+    
+    if(statusData.data.some(val => val > 0)) {
+        const ctx = document.getElementById('statusChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: statusData.labels,
+                datasets: [{
+                    data: statusData.data,
+                    backgroundColor: [
+                        '#ffc107', // Warning (Pending)
+                        '#198754', // Success (Approved)
+                        '#dc3545', // Danger (Rejected)
+                        '#0d6efd'  // Primary (PO Created)
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { 
+                        position: 'bottom',
+                        labels: { padding: 20, usePointStyle: true }
+                    }
+                },
+                cutout: '75%'
+            }
+        });
+    } else {
+        document.getElementById('statusChart').outerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-chart-pie fa-3x mb-3 opacity-25"></i><br>No pipeline data yet</div>';
+    }
+</script>
+{% endblock %}

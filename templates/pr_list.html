@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold mb-1"><i class="fas fa-list-alt text-primary"></i> Purchase Requests</h2>
+        <p class="text-muted mb-0">Manage and track all procurement requests</p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <a href="/purchase-request/create" class="btn btn-primary shadow-sm"><i class="fas fa-plus"></i> New Request</a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Budget/Unit</th>
+                        <th>Delivery Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pr in prs %}
+                    <tr>
+                        <td><strong>{{ pr.id }}</strong></td>
+                        <td>{{ pr.product }}<br><small class="text-muted">{{ pr.category }}</small></td>
+                        <td>{{ pr.quantity }}</td>
+                        <td>₹{{ pr.budget }}</td>
+                        <td>{{ pr.delivery_date }}</td>
+                        <td>
+                            <span class="badge rounded-pill
+                                {% if pr.status == 'ANALYZING' %}bg-status-analyzing
+                                {% elif pr.status == 'PENDING_APPROVAL' %}bg-status-pending
+                                {% elif pr.status == 'APPROVED' %}bg-status-approved
+                                {% elif pr.status == 'REJECTED' %}bg-status-rejected
+                                {% elif pr.status == 'PO_CREATED' %}bg-status-po
+                                {% else %}bg-secondary{% endif %}">
+                                {{ pr.status.replace('_', ' ') }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="/purchase-requests/{{ pr.id }}" class="btn btn-sm btn-outline-primary">View</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No purchase requests found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

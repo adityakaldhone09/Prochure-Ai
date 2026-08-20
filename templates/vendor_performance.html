@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2><i class="fas fa-chart-line"></i> Vendor Performance Dashboard</h2>
+        <p class="text-muted">Track reliability, accuracy, and overall ranking across your supplier base.</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <select id="categoryFilter" class="form-select w-auto d-inline-block shadow-sm" onchange="filterData()">
+            <option value="all">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<!-- Key Metrics Cards -->
+<div class="row mb-4" id="vendorCards">
+    {% for v in vendors %}
+    <div class="col-md-4 mb-4 vendor-card" data-category="{{ v.category }}">
+        <div class="card shadow-sm h-100 {% if v.overall >= 90 %}border-success{% elif v.overall <= 80 %}border-danger{% endif %}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0 text-truncate" style="max-width: 75%;">{{ v.name }}</h5>
+                    <span class="badge {% if v.overall >= 90 %}bg-success{% elif v.overall <= 80 %}bg-danger{% else %}bg-primary{% endif %} fs-6">
+                        {{ v.overall }}/100
+                    </span>
+                </div>
+                
+                <p class="text-muted small mb-3"><i class="fas fa-tag"></i> {{ v.category }} | <i class="fas fa-shopping-cart"></i> {{ v.po_count }} Orders</p>
+                
+                <div class="d-flex justify-content-between small mb-1">
+                    <span>Reliability</span>
+                    <strong class="{% if v.reliability < 85 %}text-danger{% endif %}">{{ v.reliability }}%</strong>
+                </div>
+                <div class="progress mb-2" style="height: 5px;">
+                    <div class="progress-bar {% if v.reliability >= 85 %}bg-success{% else %}bg-danger{% endif %}" style="width: {{ v.reliability }}%"></div>
+                </div>
+
+                <div class="d-flex justify-content-between small mb-1">
+                    <span>Delivery</span>
+                    <strong class="{% if v.delivery_performance < 85 %}text-danger{% endif %}">{{ v.delivery_performance }}%</strong>
+                </div>
+                <div class="progress mb-2" style="height: 5px;">
+                    <div class="progress-bar {% if v.delivery_performance >= 85 %}bg-info{% else %}bg-warning{% endif %}" style="width: {{ v.delivery_performance }}%"></div>
+                </div>
+
+                <div class="d-flex justify-content-between small mb-1">
+                    <span>Accuracy</span>
+                    <strong class="{% if v.accuracy < 90 %}text-danger{% endif %}">{{ v.accuracy }}%</strong>
+                </div>
+                <div class="progress mb-2" style="height: 5px;">
+                    <div class="progress-bar {% if v.accuracy >= 90 %}bg-primary{% else %}bg-danger{% endif %}" style="width: {{ v.accuracy }}%"></div>
+                </div>
+                
+                <div class="d-flex justify-content-between small mb-1 mt-3">
+                    <span class="text-muted">Price Competitiveness</span>
+                    <span><strong>{{ v.price_competitiveness }}%</strong></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row mt-2">
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-body">
+                <h5 class="card-title text-muted mb-4 text-center fw-bold"><i class="fas fa-chart-column text-primary"></i> Overall Vendor Ranking</h5>
+                <div style="position: relative; height: 320px; width: 100%;">
+                    <canvas id="rankingChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-body">
+                <h5 class="card-title text-muted mb-4 text-center fw-bold"><i class="fas fa-satellite-dish text-success"></i> Comparative Breakdown (Top 3)</h5>
+                <div style="position: relative; height: 320px; width: 100%;">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Global Chart Configuration for Enterprise Look
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.scale.grid.color = 'rgba(0,0,0,0.04)';
+
+    const vendors = {{ vendors|tojson }};
+    let rankingChart, radarChart;
+    
+    function initCharts(data) {
+        const labels = data.map(v => v.name);
+        const overall = data.map(v => v.overall);
+        
+        // Colors mapping based on score
+        const barColors = data.map(v => {
+            if (v.overall >= 90) return 'rgba(25, 135, 84, 0.7)'; // success
+            if (v.overall <= 80) return 'rgba(220, 53, 69, 0.7)'; // danger
+            return 'rgba(13, 110, 253, 0.7)'; // primary
+        });
+        
+        const rankCtx = document.getElementById('rankingChart').getContext('2d');
+        if(rankingChart) rankingChart.destroy();
+        rankingChart = new Chart(rankCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Overall Score',
+                    data: overall,
+                    backgroundColor: barColors,
+                    borderWidth: 0,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { 
+                    y: { 
+                        min: 60, 
+                        max: 100,
+                        grid: { borderDash: [4, 4] }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        padding: 12,
+                        cornerRadius: 8
+                    }
+                }
+            }
+        });
+        
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        if(radarChart) radarChart.destroy();
+        
+        // Radar chart for top 3 vendors
+        const top3 = data.slice(0, 3);
+        const radarDatasets = top3.map((v, idx) => {
+            const colors = [
+                'rgba(25, 135, 84, 0.6)', // Green
+                'rgba(13, 110, 253, 0.6)', // Blue
+                'rgba(111, 66, 193, 0.6)' // Purple
+            ];
+            return {
+                label: v.name,
+                data: [v.reliability, v.delivery_performance, v.accuracy, v.price_competitiveness],
+                backgroundColor: colors[idx % 3].replace('0.6', '0.15'),
+                borderColor: colors[idx % 3].replace('0.6', '1'),
+                borderWidth: 2,
+                pointBackgroundColor: colors[idx % 3].replace('0.6', '1')
+            };
+        });
+        
+        radarChart = new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Reliability', 'Delivery', 'Accuracy', 'Price'],
+                datasets: radarDatasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: { 
+                        min: 70, 
+                        max: 100,
+                        ticks: { backdropColor: 'transparent' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        padding: 12,
+                        cornerRadius: 8
+                    }
+                }
+            }
+        });
+    }
+    
+    function filterData() {
+        const cat = document.getElementById('categoryFilter').value;
+        const cards = document.querySelectorAll('.vendor-card');
+        
+        let filteredVendors = [];
+        
+        cards.forEach(card => {
+            if(cat === 'all' || card.dataset.category === cat) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        if (cat === 'all') {
+            filteredVendors = vendors;
+        } else {
+            filteredVendors = vendors.filter(v => v.category === cat);
+        }
+        
+        initCharts(filteredVendors);
+    }
+    
+    // Initialize charts on page load
+    initCharts(vendors);
+</script>
+{% endblock %}

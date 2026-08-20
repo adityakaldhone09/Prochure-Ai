@@ -1,0 +1,17 @@
+[
+    {
+        "id": "PR-1001",
+        "product": "laptop",
+        "category": "IT Hardware",
+        "quantity": 14,
+        "budget": 500000.0,
+        "delivery_date": "2026-12-12",
+        "priority": "Low",
+        "description": "",
+        "status": "PO_CREATED",
+        "approver": "Demo Admin",
+        "approval_date": "2026-08-20 22:56:15",
+        "selected_vendor_id": 1,
+        "po_id": "PO-2026-1025"
+    }
+]

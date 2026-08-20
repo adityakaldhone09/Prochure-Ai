@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold mb-1"><i class="fas fa-check-double text-success"></i> Approvals Pipeline</h2>
+        <p class="text-muted mb-0">Review and approve pending purchase requests based on automated risk and financial thresholds.</p>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Request ID</th>
+                        <th>Product</th>
+                        <th>Amount</th>
+                        <th>Rec. Vendor</th>
+                        <th>Score</th>
+                        <th>Risk</th>
+                        <th>Required Approval</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in approvals %}
+                    <tr>
+                        <td><strong>{{ item.pr.id }}</strong></td>
+                        <td>{{ item.pr.product }}<br><small class="text-muted">Qty: {{ item.pr.quantity }}</small></td>
+                        <td>₹{{ "{:,.2f}".format(item.total_amount) }}</td>
+                        <td>{{ item.recommended_vendor }}</td>
+                        <td>{{ item.vendor_score }}/100</td>
+                        <td>
+                            <span class="badge bg-{{ item.risk_color }}">{{ item.risk_level }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.required_approval.replace('_', ' ') }}</span>
+                        </td>
+                        <td>
+                        <td>
+                            <span class="badge rounded-pill
+                                {% if item.pr.status == 'APPROVED' %}bg-status-approved
+                                {% elif item.pr.status == 'REJECTED' %}bg-status-rejected
+                                {% elif item.pr.status == 'PO_CREATED' %}bg-status-po
+                                {% else %}bg-status-pending{% endif %}">
+                                {{ item.pr.status.replace('_', ' ') }}
+                            </span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#viewModal{{ item.pr.id }}">View</button>
+                            {% if item.pr.status not in ['APPROVED', 'REJECTED', 'PO_CREATED'] %}
+                            <button type="button" class="btn btn-sm btn-success" onclick="approvePR('{{ item.pr.id }}')"><i class="fas fa-check"></i></button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="rejectPR('{{ item.pr.id }}')"><i class="fas fa-times"></i></button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">No pending approvals found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% for item in approvals %}
+<!-- View Modal -->
+<div class="modal fade" id="viewModal{{ item.pr.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold"><i class="fas fa-file-invoice text-secondary"></i> Request {{ item.pr.id }} Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Product:</strong> {{ item.pr.product }}</p>
+                <p><strong>Quantity:</strong> {{ item.pr.quantity }}</p>
+                <p><strong>Recommended Vendor:</strong> {{ item.recommended_vendor }}</p>
+                <p><strong>Total Amount:</strong> ₹{{ "{:,.2f}".format(item.total_amount) }}</p>
+                <p><strong>Required Approval:</strong> <span class="badge bg-secondary">{{ item.required_approval.replace('_', ' ') }}</span></p>
+                {% if item.pr.status in ['APPROVED', 'PO_CREATED'] %}
+                <hr>
+                <p class="text-success mb-1"><strong><i class="fas fa-check-circle"></i> Approved By:</strong> {{ item.pr.approver }}</p>
+                <p class="text-muted small mb-3">On {{ item.pr.approval_date }}</p>
+                {% if item.pr.po_id %}
+                <p class="text-primary mb-0"><strong><i class="fas fa-file-invoice"></i> Created PO ID:</strong> {{ item.pr.po_id }}</p>
+                {% endif %}
+                {% endif %}
+                {% if item.pr.status == 'REJECTED' %}
+                <hr>
+                <p class="text-danger mb-1"><strong><i class="fas fa-times-circle"></i> Rejected By:</strong> {{ item.pr.rejecter }}</p>
+                <p class="text-muted small mb-3">On {{ item.pr.rejection_date }}</p>
+                <div class="alert alert-danger mb-0">
+                    <strong>Reason:</strong><br>
+                    {{ item.pr.rejection_reason }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- PO Success Modal -->
+<div class="modal fade" id="poSuccessModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-success">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-check-circle"></i> PURCHASE ORDER CREATED</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="location.reload()"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-file-invoice-dollar text-success mb-3" style="font-size: 3rem;"></i>
+                <h3 class="mb-4" id="poSuccessNumber">PO-XXXX-XXXX</h3>
+                
+                <p class="mb-1 text-muted text-uppercase small fw-bold">Vendor</p>
+                <h5 id="poSuccessVendor" class="mb-4">Vendor Name</h5>
+                
+                <p class="mb-1 text-muted text-uppercase small fw-bold">Amount</p>
+                <h4 id="poSuccessAmount" class="text-primary mb-0">₹0.00</h4>
+            </div>
+            <div class="modal-footer justify-content-center bg-light">
+                <a href="#" class="btn btn-outline-success" id="btnViewOdoo" target="_blank">
+                    <i class="fas fa-external-link-alt"></i> VIEW IN ODOO
+                </a>
+                <button type="button" class="btn btn-secondary" onclick="location.reload()">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function approvePR(prId) {
+    if(confirm('Are you sure you want to approve this request?')) {
+        fetch('/api/approve/' + prId, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                document.getElementById('poSuccessNumber').innerText = data.po_id;
+                document.getElementById('poSuccessVendor').innerText = data.vendor;
+                document.getElementById('poSuccessAmount').innerText = '₹' + data.amount.toLocaleString('en-IN');
+                
+                let odooUrl = data.odoo_url || 'http://localhost:8069';
+                document.getElementById('btnViewOdoo').href = `${odooUrl}/web#action=purchase.purchase_rfq`;
+                
+                var successModal = new bootstrap.Modal(document.getElementById('poSuccessModal'));
+                successModal.show();
+            } else {
+                alert('ERROR CREATING PO IN ODOO:\n' + data.error + '\n\nThe purchase request has been APPROVED, but remains pending PO creation.');
+                location.reload();
+            }
+        })
+        .catch(error => {
+            alert('A critical error occurred while attempting to contact the server.');
+            location.reload();
+        });
+    }
+}
+
+function rejectPR(prId) {
+    const reason = prompt('Please enter a rejection reason:');
+    if (reason !== null && reason.trim() !== '') {
+        fetch('/api/reject/' + prId, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({reason: reason})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                location.reload();
+            } else {
+                alert('Rejection failed: ' + data.error);
+            }
+        });
+    } else if (reason !== null) {
+        alert("Rejection reason is required.");
+    }
+}
+</script>
+{% endblock %}

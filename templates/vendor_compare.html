@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold mb-1"><i class="fas fa-balance-scale text-primary"></i> Vendor Comparison</h2>
+        <p class="text-muted mb-0">Request <strong>{{ pr.id }}</strong> &middot; {{ pr.product }} &middot; Qty: {{ pr.quantity }} &middot; Budget: ₹{{ pr.budget }}/unit</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="/purchase-requests/{{ pr.id }}" class="btn btn-outline-secondary">Back to Request</a>
+    </div>
+</div>
+
+{% if recommended %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 border-start border-success border-5 mb-3">
+            <div class="card-body bg-success bg-opacity-10 py-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <span class="badge bg-success rounded-pill mb-2 px-3 py-2 text-uppercase"><i class="fas fa-star me-1"></i> Recommended Vendor</span>
+                        <h3 class="text-success fw-bold mb-1">{{ recommended.vendor_name }}</h3>
+                        <p class="mb-0 fs-5 text-dark"><strong>Score: {{ recommended.final_score }}/100</strong></p>
+                        
+                        <div class="mt-3 p-3 bg-white border rounded">
+                            <h6 class="text-primary mb-2">
+                                <i class="fas fa-magic"></i> Analysis Explanation
+                                {% if recommended.is_ai_generated %}
+                                <span class="badge bg-primary ms-2" style="font-size: 0.6rem;">AI Generated</span>
+                                {% else %}
+                                <span class="badge bg-secondary ms-2" style="font-size: 0.6rem;">Deterministic Rule</span>
+                                {% endif %}
+                            </h6>
+                            <p class="text-muted mb-0" style="white-space: pre-wrap; font-size: 0.9rem;">{{ recommended.explanation }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-success btn-lg"><i class="fas fa-check-circle"></i> Approve & Create PO</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Vendor</th>
+                        <th>Unit Price</th>
+                        <th>Total Price</th>
+                        <th>Delivery</th>
+                        <th>Reliability</th>
+                        <th>Order Accuracy</th>
+                        <th>Rating</th>
+                        <th>Final Score</th>
+                        <th>Risk</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in vendors %}
+                    <tr class="{% if v.is_recommended %}table-success{% endif %}">
+                        <td class="ps-3">
+                            <strong class="{% if v.is_recommended %}text-success fs-5{% endif %}">{{ v.vendor_name }}</strong>
+                            {% if v.is_recommended %}
+                            <br><span class="badge bg-success rounded-pill mt-1"><i class="fas fa-star"></i> Top Choice</span>
+                            {% endif %}
+                        </td>
+                        <td>₹{{ "{:,.2f}".format(v.raw_price) }}</td>
+                        <td>₹{{ "{:,.2f}".format(v.raw_price * pr.quantity) }}</td>
+                        <td>{{ v.raw_delivery }} days</td>
+                        <td>{{ v.profile.reliability }}%</td>
+                        <td>{{ v.profile.accuracy }}%</td>
+                        <td>{{ v.profile.rating }}</td>
+                        <td><strong>{{ v.final_score }}/100</strong></td>
+                        <td>
+                            <span class="badge bg-{{ v.risk_color }} mb-2"><i class="fas fa-exclamation-triangle"></i> {{ v.risk_level }} RISK</span>
+                            {% if v.risks %}
+                                <div class="text-start">
+                                    <small class="text-muted fw-bold">Reasons:</small>
+                                    <ul class="text-muted small ps-3 mb-0" style="font-size: 0.8rem; line-height: 1.2;">
+                                        {% for r in v.risks %}
+                                        <li>{{ r }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

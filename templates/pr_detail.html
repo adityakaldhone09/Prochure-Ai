@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2 class="fw-bold mb-1">{{ pr.id }} <span class="text-muted fw-light mx-2">|</span> {{ pr.product }}</h2>
+        <span class="badge rounded-pill mt-2 fs-6
+            {% if pr.status == 'ANALYZING' %}bg-status-analyzing
+            {% elif pr.status == 'PENDING_APPROVAL' %}bg-status-pending
+            {% elif pr.status == 'APPROVED' %}bg-status-approved
+            {% elif pr.status == 'REJECTED' %}bg-status-rejected
+            {% elif pr.status == 'PO_CREATED' %}bg-status-po
+            {% else %}bg-secondary{% endif %}">
+            {{ pr.status.replace('_', ' ') }}
+        </span>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="/purchase-requests" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-file-alt text-secondary"></i> Request Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-muted">Category</div>
+                    <div class="col-sm-8">{{ pr.category }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-muted">Quantity</div>
+                    <div class="col-sm-8">{{ pr.quantity }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-muted">Max Budget / Unit</div>
+                    <div class="col-sm-8">₹{{ pr.budget }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-muted">Required Delivery</div>
+                    <div class="col-sm-8">{{ pr.delivery_date }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-muted">Priority</div>
+                    <div class="col-sm-8">
+                        <span class="badge {% if pr.priority == 'Critical' %}bg-danger{% elif pr.priority == 'High' %}bg-warning{% else %}bg-secondary{% endif %}">
+                            {{ pr.priority }}
+                        </span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-4 text-muted">Description</div>
+                    <div class="col-sm-8">{{ pr.description }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-brain text-primary"></i> Intelligence Layer</h5>
+            </div>
+            <div class="card-body">
+                {% if pr.status == 'ANALYZING' %}
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-muted">AI is analyzing vendor matches and scoring capabilities...</p>
+                    <a href="/vendors/compare/{{ pr.id }}" class="btn btn-primary mt-2">View Analysis & Compare Vendors</a>
+                </div>
+                {% else %}
+                <p class="text-muted">Analysis complete.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
