@@ -39,7 +39,6 @@
                             <span class="badge bg-secondary">{{ item.required_approval.replace('_', ' ') }}</span>
                         </td>
                         <td>
-                        <td>
                             <span class="badge rounded-pill
                                 {% if item.pr.status == 'APPROVED' %}bg-status-approved
                                 {% elif item.pr.status == 'REJECTED' %}bg-status-rejected

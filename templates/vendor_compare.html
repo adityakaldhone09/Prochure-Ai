@@ -34,7 +34,15 @@
                         </div>
                     </div>
                     <div class="col-md-4 text-end">
-                        <button class="btn btn-success btn-lg"><i class="fas fa-check-circle"></i> Approve & Create PO</button>
+                        {% if pr.status == 'PENDING_APPROVAL' %}
+                        <button type="button" class="btn btn-success btn-lg" onclick="approvePR('{{ pr.id }}')">
+                            <i class="fas fa-check-circle"></i> Approve &amp; Create PO
+                        </button>
+                        {% elif pr.status == 'PO_CREATED' %}
+                        <span class="badge bg-status-po fs-6"><i class="fas fa-file-invoice"></i> PO {{ pr.po_id }} created</span>
+                        {% elif pr.status == 'REJECTED' %}
+                        <span class="badge bg-status-rejected fs-6">Request rejected</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -96,4 +104,26 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function approvePR(prId) {
+    if (!confirm('Are you sure you want to approve this request and create a purchase order?')) return;
+
+    fetch('/api/approve/' + encodeURIComponent(prId), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json().then(data => ({ok: response.ok, data: data})))
+    .then(result => {
+        if (!result.ok || !result.data.success) {
+            throw new Error(result.data.error || 'Approval failed.');
+        }
+        alert('Purchase order ' + result.data.po_id + ' created successfully.');
+        window.location.href = '/purchase-requests/' + encodeURIComponent(prId);
+    })
+    .catch(error => alert(error.message));
+}
+</script>
 {% endblock %}
