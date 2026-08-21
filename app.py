@@ -28,13 +28,53 @@ def get_current_user():
 
 @app.before_request
 def require_login():
-    allowed_routes = ['login', 'static']
+    allowed_routes = ['landing', 'login', 'static', 'api_auth_me', 'api_auth_login']
     if request.endpoint not in allowed_routes and not get_current_user():
+        if request.path.startswith('/api/'):
+            return jsonify({"success": False, "error": "Authentication required."}), 401
         return redirect(url_for('login'))
 
 scoring_engine = VendorScoringEngine()
 
-@app.route('/')
+def find_pr(pr_id):
+    return next((pr for pr in MOCK_PURCHASE_REQUESTS if pr['id'] == pr_id), None)
+
+def build_comparison(pr):
+    quotation = MOCK_QUOTATIONS[0]
+    try:
+        days_requested = (datetime.strptime(pr['delivery_date'], '%Y-%m-%d') - datetime.now()).days
+        if days_requested <= 0:
+            days_requested = 7
+    except (TypeError, ValueError):
+        days_requested = quotation['required_delivery_days']
+
+    profiles = odoo.get_vendors()
+    scored = VendorScoringEngine.score_vendors(quotation['bids'], profiles, days_requested, pr['budget'])
+    for vendor in scored:
+        profile = next((item for item in profiles if item['id'] == vendor['vendor_id']), {})
+        vendor['profile'] = profile
+        risk = ProcurementRiskEngine.evaluate_risk(
+            vendor['raw_price'], pr['budget'], vendor['raw_delivery'], days_requested,
+            profile.get('reliability', 100), profile.get('accuracy', 100), profile.get('rating', 100)
+        )
+        vendor.update(risk_score=risk['risk_score'], risk_level=risk['risk_level'], risks=risk['risks'])
+    return scored
+
+def serialize_comparison(pr):
+    vendors = build_comparison(pr)
+    recommended = vendors[0] if vendors else None
+    explanation = AIService.generate_explanation(pr, vendors, recommended) if recommended else ''
+    return {
+        'request': pr,
+        'vendors': vendors,
+        'recommended': recommended,
+        'explanation': explanation,
+        'required_approval': ApprovalEngine.get_required_approvals(
+            recommended['raw_price'] * pr['quantity']
+        ) if recommended else None
+    }
+
+@app.route('/dashboard')
 def dashboard():
     total_prs = len(MOCK_PURCHASE_REQUESTS)
     pending_approvals = sum(1 for pr in MOCK_PURCHASE_REQUESTS if pr['status'] in ['PENDING_APPROVAL', 'ANALYZING', 'DRAFT'])
@@ -63,15 +103,14 @@ def dashboard():
     avg_vendor_score = sum(v['overall_score'] for v in vendors) / len(vendors) if vendors else 0
     risk_alerts = [v for v in vendors if v['overall_score'] < 80 or v.get('reliability', 100) < 80]
     
-    recent_requests = MOCK_PURCHASE_REQUESTS[-5:]
-    recent_requests.reverse()
+    recent_requests = MOCK_PURCHASE_REQUESTS[:5]
     
     status_data = {
         'labels': ['Pending/Analyzing', 'Approved', 'Rejected', 'PO Created'],
         'data': [pending_approvals, approved_prs, rejected_prs, po_created_prs]
     }
     
-    return render_template('dashboard.html', 
+    return render_template('app.html', 
         stats={
             'total_prs': total_prs,
             'pending_approvals': pending_approvals,
@@ -88,9 +127,13 @@ def dashboard():
         status_data=status_data
     )
 
+@app.route('/')
+def landing():
+    return render_template('app.html', page='landing')
+
 @app.route('/purchase-requests')
 def pr_list():
-    return render_template('pr_list.html', prs=MOCK_PURCHASE_REQUESTS)
+    return render_template('app.html')
 
 @app.route('/purchase-request/create', methods=['GET', 'POST'])
 def pr_create():
@@ -234,6 +277,8 @@ def vendor_compare(pr_id):
 def approval_list():
     approvals_data = []
     for pr in MOCK_PURCHASE_REQUESTS:
+        if pr.get('status') != 'PENDING_APPROVAL':
+            continue
         # We need the recommended vendor info. Using the mock RFQ bids for the demo context.
         quotation = MOCK_QUOTATIONS[0]
         bids = quotation['bids']
@@ -275,6 +320,8 @@ def approve_pr(pr_id):
     pr = next((p for p in MOCK_PURCHASE_REQUESTS if p['id'] == pr_id), None)
     if not pr:
         return jsonify({"success": False, "error": "Not found"}), 404
+    if pr.get('status') != 'PENDING_APPROVAL':
+        return jsonify({"success": False, "error": "Only pending requests can be approved."}), 409
         
     quotation = MOCK_QUOTATIONS[0]
     scored = VendorScoringEngine.score_vendors(quotation['bids'], odoo.get_vendors(), 7, pr['budget'])
@@ -327,6 +374,8 @@ def reject_pr(pr_id):
     pr = next((p for p in MOCK_PURCHASE_REQUESTS if p['id'] == pr_id), None)
     if not pr:
         return jsonify({"success": False, "error": "Not found"}), 404
+    if pr.get('status') != 'PENDING_APPROVAL':
+        return jsonify({"success": False, "error": "Only pending requests can be rejected."}), 409
         
     pr['status'] = 'REJECTED'
     pr['rejecter'] = user['name']
@@ -378,6 +427,115 @@ def api_vendors():
     vendors = odoo.get_vendors()
     return jsonify(vendors)
 
+@app.route('/api/auth/me')
+def api_auth_me():
+    user = get_current_user()
+    return jsonify({'authenticated': bool(user), 'user': user})
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_auth_login():
+    data = request.get_json(silent=True) or {}
+    user = MOCK_USERS.get(data.get('email'))
+    if not user or user['password'] != data.get('password'):
+        return jsonify({'success': False, 'error': 'Invalid email or password.'}), 401
+    session['user'] = {'email': data['email'], 'name': user['name'], 'role': user['role']}
+    return jsonify({'success': True, 'user': session['user']})
+
+@app.route('/api/auth/logout', methods=['POST'])
+def api_auth_logout():
+    session.clear()
+    return jsonify({'success': True})
+
+@app.route('/api/dashboard')
+def api_dashboard():
+    vendors = odoo.get_vendors()
+    for vendor in vendors:
+        vendor['overall_score'] = round(sum(vendor.get(key, 85) for key in (
+            'reliability', 'delivery_performance', 'accuracy', 'price_competitiveness', 'rating'
+        )) / 5, 1)
+    orders = odoo.get_purchase_orders(limit=50)
+    return jsonify({
+        'stats': {
+            'total_prs': len(MOCK_PURCHASE_REQUESTS),
+            'pending_approvals': sum(pr['status'] in ['PENDING_APPROVAL', 'ANALYZING', 'DRAFT'] for pr in MOCK_PURCHASE_REQUESTS),
+            'po_created': sum(pr['status'] == 'PO_CREATED' for pr in MOCK_PURCHASE_REQUESTS),
+            'total_spend': sum(order.get('amount_total', 0) for order in orders)
+        },
+        'recent_requests': MOCK_PURCHASE_REQUESTS[:5],
+        'recent_orders': orders[:5],
+        'top_vendors': sorted(vendors, key=lambda item: item['overall_score'], reverse=True)[:5]
+    })
+
+@app.route('/api/purchase-requests', methods=['GET', 'POST'])
+def api_purchase_requests():
+    if request.method == 'GET':
+        return jsonify(MOCK_PURCHASE_REQUESTS)
+    data = request.get_json(silent=True) or {}
+    required = ['product', 'quantity', 'budget', 'delivery_date']
+    if any(not str(data.get(field, '')).strip() for field in required):
+        return jsonify({'success': False, 'error': 'Product, quantity, budget, and delivery date are required.'}), 400
+    try:
+        quantity = int(data['quantity'])
+        budget = float(data['budget'])
+        if quantity <= 0 or budget <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Quantity and budget must be positive numbers.'}), 400
+    new_pr = {
+        'id': f"PR-{1000 + len(MOCK_PURCHASE_REQUESTS) + 1}",
+        'product': str(data['product']).strip(), 'category': data.get('category', 'Other'),
+        'quantity': quantity, 'budget': budget, 'delivery_date': data['delivery_date'],
+        'priority': data.get('priority', 'Medium'), 'description': data.get('description', '').strip(),
+        'status': 'ANALYZING'
+    }
+    MOCK_PURCHASE_REQUESTS.insert(0, new_pr)
+    save_prs(MOCK_PURCHASE_REQUESTS)
+    return jsonify(new_pr), 201
+
+@app.route('/api/purchase-requests/<pr_id>')
+def api_purchase_request(pr_id):
+    pr = find_pr(pr_id)
+    return jsonify(pr) if pr else (jsonify({'success': False, 'error': 'Not found'}), 404)
+
+@app.route('/api/purchase-requests/<pr_id>/analyze', methods=['POST'])
+def api_analyze_request(pr_id):
+    pr = find_pr(pr_id)
+    if not pr:
+        return jsonify({'success': False, 'error': 'Not found'}), 404
+    build_comparison(pr)
+    if pr['status'] == 'ANALYZING':
+        pr['status'] = 'PENDING_APPROVAL'
+        save_prs(MOCK_PURCHASE_REQUESTS)
+    return jsonify(serialize_comparison(pr))
+
+@app.route('/api/purchase-requests/<pr_id>/comparison')
+def api_comparison(pr_id):
+    pr = find_pr(pr_id)
+    if not pr:
+        return jsonify({'success': False, 'error': 'Not found'}), 404
+    return jsonify(serialize_comparison(pr))
+
+@app.route('/api/approvals')
+def api_approvals():
+    return jsonify([serialize_comparison(pr) for pr in MOCK_PURCHASE_REQUESTS if pr['status'] == 'PENDING_APPROVAL'])
+
+@app.route('/api/purchase-requests/<pr_id>/approve', methods=['POST'])
+def api_approve_request(pr_id):
+    return approve_pr(pr_id)
+
+@app.route('/api/purchase-requests/<pr_id>/reject', methods=['POST'])
+def api_reject_request(pr_id):
+    return reject_pr(pr_id)
+
+@app.route('/api/vendors/performance')
+def api_vendor_performance():
+    vendors = odoo.get_vendors()
+    for vendor in vendors:
+        vendor['overall'] = round(sum(vendor.get(key, 85) for key in (
+            'reliability', 'delivery', 'accuracy', 'price_competitiveness', 'rating'
+        )) / 5, 1)
+    return jsonify(sorted(vendors, key=lambda item: item['overall'], reverse=True))
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -392,7 +550,7 @@ def login():
         else:
             flash("Invalid email or password", "danger")
             
-    return render_template('login.html')
+    return render_template('app.html')
 
 @app.route('/logout')
 def logout():

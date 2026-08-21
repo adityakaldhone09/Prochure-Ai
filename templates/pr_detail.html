@@ -83,6 +83,13 @@
                 </div>
                 {% else %}
                 <p class="text-muted">Analysis complete.</p>
+                {% if pr.status == 'PENDING_APPROVAL' %}
+                <a href="/vendors/compare/{{ pr.id }}" class="btn btn-primary">Review Vendors &amp; Approve</a>
+                {% elif pr.status == 'PO_CREATED' %}
+                <p class="text-success mb-0"><i class="fas fa-check-circle"></i> Purchase order {{ pr.po_id }} created.</p>
+                {% elif pr.status == 'REJECTED' %}
+                <p class="text-danger mb-0"><i class="fas fa-times-circle"></i> Request rejected.</p>
+                {% endif %}
                 {% endif %}
             </div>
         </div>

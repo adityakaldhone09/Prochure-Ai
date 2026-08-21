@@ -1,5 +1,20 @@
 [
     {
+        "id": "PR-1002",
+        "product": "Browser Flow Laptop",
+        "category": "IT Hardware",
+        "quantity": 2,
+        "budget": 60000.0,
+        "delivery_date": "2026-09-30",
+        "priority": "Low",
+        "description": "Browser end to end approval check",
+        "status": "PO_CREATED",
+        "approver": "System Admin",
+        "approval_date": "2026-08-21 19:09:32",
+        "selected_vendor_id": 1,
+        "po_id": "PO-2026-1025"
+    },
+    {
         "id": "PR-1001",
         "product": "laptop",
         "category": "IT Hardware",
